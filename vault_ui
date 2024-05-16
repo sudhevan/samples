@@ -1,0 +1,128 @@
+from flask import Flask, request, jsonify, render_template
+import requests
+
+app = Flask(__name__)
+
+VAULT_ADDR = "http://127.0.0.1:8200"  # Replace with your Vault address
+VAULT_TOKEN = "s.XXXXXX"  # Replace with your API token
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/list/<path:prefix>', methods=['GET'])
+def list_secrets(prefix):
+    url = f"{VAULT_ADDR}/v1/secret/metadata/{prefix}"
+    headers = {
+        'X-Vault-Token': VAULT_TOKEN,
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return jsonify(response.json().get('data', {}).get('keys', []))
+    return jsonify([]), response.status_code
+
+@app.route('/read/<path:key>', methods=['GET'])
+def read_secret(key):
+    url = f"{VAULT_ADDR}/v1/secret/data/{key}"
+    headers = {
+        'X-Vault-Token': VAULT_TOKEN,
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return jsonify(response.json().get('data', {}).get('data', {}))
+    return jsonify({}), response.status_code
+
+@app.route('/write/<path:key>', methods=['POST'])
+def write_secret(key):
+    url = f"{VAULT_ADDR}/v1/secret/data/{key}"
+    headers = {
+        'X-Vault-Token': VAULT_TOKEN,
+    }
+    data = request.json
+    payload = {
+        'data': data
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    return jsonify(response.json()), response.status_code
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+
+  <!DOCTYPE html>
+<html>
+<head>
+    <title>Vault UI</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>HashiCorp Vault UI</h1>
+    <div>
+        <h2>Folders</h2>
+        <div id="folders"></div>
+    </div>
+    <div>
+        <h2>Secret</h2>
+        <pre id="secret"></pre>
+    </div>
+    <div>
+        <h2>Write Secret</h2>
+        <form id="write-form">
+            <input type="text" id="key" placeholder="Key" required>
+            <textarea id="value" placeholder="Value" required></textarea>
+            <button type="submit">Write</button>
+        </form>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
+
+  $(document).ready(function() {
+    function loadFolders() {
+        $.getJSON('/list/', function(data) {
+            var folders = $('#folders');
+            folders.empty();
+            $.each(data, function(index, value) {
+                folders.append('<div><a href="#" class="folder-link" data-prefix="' + value + '">' + value + '</a></div>');
+            });
+        });
+    }
+
+    $(document).on('click', '.folder-link', function(e) {
+        e.preventDefault();
+        var prefix = $(this).data('prefix');
+        $.getJSON('/list/' + prefix, function(data) {
+            var folders = $('#folders');
+            folders.empty();
+            folders.append('<div><a href="#" class="folder-link" data-prefix="">' + prefix + '</a></div>'); // Go back option
+            $.each(data, function(index, value) {
+                folders.append('<div><a href="#" class="folder-link" data-prefix="' + prefix + value + '">' + value + '</a></div>');
+            });
+        });
+    });
+
+    $('#write-form').submit(function(e) {
+        e.preventDefault();
+        var key = $('#key').val();
+        var value = $('#value').val();
+        $.ajax({
+            url: '/write/' + key,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({value: value}),
+            success: function(response) {
+                alert('Secret written successfully');
+            }
+        });
+    });
+
+    loadFolders();
+});
+
+
+
+python app.py
+
+              
