@@ -1,0 +1,230 @@
+To set up Apache Spark 2.4.5 to use Google Cloud Storage (GCS) with S3 HMAC keys and treat `https://storage.googleapis.com` as an S3 endpoint, you'll need to configure several components correctly. Here are the detailed steps and the necessary versions of AWS and Hadoop jars you'll need:
+
+### Step-by-Step Setup
+
+1. **Install Hadoop and AWS JARs**:
+    - You need Hadoop 2.7.x jars and the AWS SDK for Java.
+    - Download the required JAR files if not already included in your Spark/Hadoop distribution.
+
+2. **Dependencies**:
+    - **Hadoop**: You should use Hadoop version 2.7.x. The specific JARs you need include:
+        - `hadoop-common-2.7.x.jar`
+        - `hadoop-aws-2.7.x.jar`
+    - **AWS SDK**: Use AWS SDK version 1.7.4. The specific JARs you need include:
+        - `aws-java-sdk-1.7.4.jar`
+        - `joda-time-2.9.9.jar` (or a compatible version)
+
+3. **Configuration Files**:
+    - **core-site.xml**: This file should be placed in the `$HADOOP_HOME/etc/hadoop/` directory and configured as follows:
+
+    ```xml
+    <configuration>
+        <property>
+            <name>fs.s3a.impl</name>
+            <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+        </property>
+        <property>
+            <name>fs.s3a.access.key</name>
+            <value>YOUR_ACCESS_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.secret.key</name>
+            <value>YOUR_SECRET_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.endpoint</name>
+            <value>storage.googleapis.com</value>
+        </property>
+        <property>
+            <name>fs.s3a.path.style.access</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3a.connection.ssl.enabled</name>
+            <value>true</value>
+        </property>
+    </configuration>
+    ```
+
+4. **Running Spark**:
+    - Ensure that your Spark configuration includes the Hadoop and AWS JARs in the classpath. You can add them to the `spark-submit` command using the `--jars` option:
+
+    ```bash
+    spark-submit --jars /path/to/hadoop-aws-2.7.x.jar,/path/to/aws-java-sdk-1.7.4.jar,/path/to/joda-time-2.9.9.jar --conf spark.hadoop.fs.s3a.endpoint=storage.googleapis.com your_spark_application.py
+    ```
+
+### Example Configuration in Python
+
+Here's an example of how you might configure and use Spark to access GCS in a Python script:
+
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("GCS_S3_Spark") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.access.key", "YOUR_ACCESS_KEY") \
+    .config("spark.hadoop.fs.s3a.secret.key", "YOUR_SECRET_KEY") \
+    .config("spark.hadoop.fs.s3a.endpoint", "storage.googleapis.com") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "true") \
+    .getOrCreate()
+
+# Example to read a file from GCS
+df = spark.read.text("s3a://your-bucket-name/path/to/your/file.txt")
+df.show()
+```
+
+### Summary of Required JARs
+
+- Hadoop Common: `hadoop-common-2.7.x.jar`
+- Hadoop AWS: `hadoop-aws-2.7.x.jar`
+- AWS SDK: `aws-java-sdk-1.7.4.jar`
+- Joda-Time: `joda-time-2.9.9.jar`
+
+By following these steps and using the specified versions of the JARs, you should be able to configure Spark 2.4.5 to use GCS with S3 HMAC keys correctly.
+
+Yes, this setup can connect to the HTTPS version of `storage.googleapis.com` endpoint. The configuration and the JAR versions specified support HTTPS connections to Google Cloud Storage (GCS) using the S3A connector.
+
+### Key Points to Ensure HTTPS Connection
+
+1. **Hadoop Configuration**: Make sure the `core-site.xml` is correctly configured to enable SSL.
+
+    ```xml
+    <configuration>
+        <property>
+            <name>fs.s3a.impl</name>
+            <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+        </property>
+        <property>
+            <name>fs.s3a.access.key</name>
+            <value>YOUR_ACCESS_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.secret.key</name>
+            <value>YOUR_SECRET_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.endpoint</name>
+            <value>storage.googleapis.com</value>
+        </property>
+        <property>
+            <name>fs.s3a.path.style.access</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3a.connection.ssl.enabled</name>
+            <value>true</value>
+        </property>
+    </configuration>
+    ```
+
+2. **Spark Configuration**: Ensure that you pass the necessary configurations when submitting your Spark job.
+
+    ```bash
+    spark-submit --jars /path/to/hadoop-aws-2.7.x.jar,/path/to/aws-java-sdk-1.7.4.jar,/path/to/joda-time-2.9.9.jar --conf spark.hadoop.fs.s3a.endpoint=storage.googleapis.com --conf spark.hadoop.fs.s3a.connection.ssl.enabled=true your_spark_application.py
+    ```
+
+3. **Dependencies**:
+    - **Hadoop Common**: `hadoop-common-2.7.x.jar`
+    - **Hadoop AWS**: `hadoop-aws-2.7.x.jar`
+    - **AWS SDK**: `aws-java-sdk-1.7.4.jar`
+    - **Joda-Time**: `joda-time-2.9.9.jar`
+
+### Example Spark Application Configuration
+
+Here is an example of configuring and using Spark to connect to GCS using HTTPS:
+
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("GCS_S3_Spark") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.access.key", "YOUR_ACCESS_KEY") \
+    .config("spark.hadoop.fs.s3a.secret.key", "YOUR_SECRET_KEY") \
+    .config("spark.hadoop.fs.s3a.endpoint", "storage.googleapis.com") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "true") \
+    .getOrCreate()
+
+# Example to read a file from GCS
+df = spark.read.text("s3a://your-bucket-name/path/to/your/file.txt")
+df.show()
+```
+
+By setting `fs.s3a.connection.ssl.enabled` to `true`, the connector will use HTTPS to communicate with `storage.googleapis.com`. This ensures a secure connection between your Spark application and Google Cloud Storage. 
+
+With these configurations, you should be able to connect to the HTTPS version of the `storage.googleapis.com` endpoint using the specified versions of Spark, Hadoop, and AWS SDK JARs.
+
+To download all the necessary JAR files for configuring Apache Spark to use Google Cloud Storage (GCS) with S3 HMAC keys, you can follow these steps:
+
+### 1. **Apache Hadoop JARs**
+You can download the Hadoop JARs from the Apache Hadoop official site or Maven Central Repository.
+
+- **Hadoop Common JAR** (`hadoop-common-2.7.x.jar`):
+  - Visit the [Apache Hadoop releases page](https://hadoop.apache.org/releases.html).
+  - Download the binary distribution of Hadoop 2.7.x.
+  - The JAR can be found in the `share/hadoop/common/` directory after extracting the archive.
+
+- **Hadoop AWS JAR** (`hadoop-aws-2.7.x.jar`):
+  - Available from Maven Central.
+  - Direct download link for `hadoop-aws-2.7.4.jar`: [Maven Repository](https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.4/hadoop-aws-2.7.4.jar).
+
+### 2. **AWS SDK JARs**
+You can download the AWS SDK JARs from the Maven Central Repository.
+
+- **AWS SDK for Java** (`aws-java-sdk-1.7.4.jar`):
+  - Direct download link for `aws-java-sdk-1.7.4.jar`: [Maven Repository](https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar).
+
+- **Joda-Time JAR** (`joda-time-2.9.9.jar`):
+  - Direct download link for `joda-time-2.9.9.jar`: [Maven Repository](https://repo1.maven.org/maven2/joda-time/joda-time/2.9.9/joda-time-2.9.9.jar).
+
+### Download Links Summary
+- **Hadoop Common**: [Download from Apache Hadoop](https://hadoop.apache.org/releases.html) or use a specific version from Maven:
+  - [hadoop-common-2.7.4.jar](https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/2.7.4/hadoop-common-2.7.4.jar)
+- **Hadoop AWS**: [hadoop-aws-2.7.4.jar](https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.4/hadoop-aws-2.7.4.jar)
+- **AWS SDK**: [aws-java-sdk-1.7.4.jar](https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar)
+- **Joda-Time**: [joda-time-2.9.9.jar](https://repo1.maven.org/maven2/joda-time/joda-time/2.9.9/joda-time-2.9.9.jar)
+
+### Alternative: Using Maven or Gradle
+
+If you are using Maven or Gradle to manage dependencies, you can include these dependencies in your `pom.xml` or `build.gradle` file. This way, the build tool will automatically download and include the necessary JARs.
+
+**Maven**:
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>2.7.4</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-aws</artifactId>
+        <version>2.7.4</version>
+    </dependency>
+    <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk</artifactId>
+        <version>1.7.4</version>
+    </dependency>
+    <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>2.9.9</version>
+    </dependency>
+</dependencies>
+```
+
+**Gradle**:
+```groovy
+dependencies {
+    implementation 'org.apache.hadoop:hadoop-common:2.7.4'
+    implementation 'org.apache.hadoop:hadoop-aws:2.7.4'
+    implementation 'com.amazonaws:aws-java-sdk:1.7.4'
+    implementation 'joda-time:joda-time:2.9.9'
+}
+```
+
+Using these methods, you can ensure that all required dependencies are downloaded and included in your project automatically.
