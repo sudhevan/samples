@@ -737,3 +737,121 @@ spark.eventLog.dir gs://your-gcs-bucket/spark-history
 - **Configurations in `core-site.xml` and `spark-defaults.conf`**: Ensure the correct settings for GCS.
 
 By following these steps, you ensure that Spark 2.4.5 can access Google Cloud Storage using a service account JSON key file while maintaining full compatibility with other Spark functionalities such as the History Server and other default configurations. This setup leverages the GCS connector, which is designed to work seamlessly with Hadoop 2.x and, by extension, Spark 2.4.5.
+
+
+
+You are correct. Google Cloud Storage (GCS) supports HMAC keys for interoperability with applications that use the AWS S3 API. However, if you want to access GCS using the native GCS API, it is better and more secure to use the service account JSON key file instead of HMAC keys. The JSON key file is the recommended method for authentication and is simpler to configure.
+
+Let's adjust the configuration to use the service account JSON key file with Spark 3.1.2 and Hadoop 2.x.
+
+### Step-by-Step Setup
+
+#### 1. Download the Required JARs
+
+You'll need the appropriate Hadoop and Google Cloud Storage (GCS) connector jars:
+
+- **Hadoop Common JAR**:
+  - Example: [hadoop-common-2.7.4.jar](https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/2.7.4/hadoop-common-2.7.4.jar)
+
+- **Google Cloud Storage Connector JAR**:
+  - Download the GCS connector JAR compatible with Hadoop 2.x:
+    - [gcs-connector-hadoop2-latest.jar](https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar)
+
+#### 2. Set Up Your GCS Credentials
+
+1. **Create a Service Account and Download JSON Key**:
+   - Go to the Google Cloud Console.
+   - Navigate to `IAM & Admin` > `Service Accounts`.
+   - Create a new service account or use an existing one.
+   - Create a key in JSON format and download it.
+
+2. **Set the Environment Variable**:
+   - Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to the location of your JSON key file.
+   
+   ```bash
+   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-service-account-key.json"
+   ```
+
+#### 3. Configure `core-site.xml`
+
+Place the configuration file in the `$HADOOP_HOME/etc/hadoop/` directory:
+
+```xml
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>gs://your-gcs-bucket</value>
+    </property>
+    <property>
+        <name>fs.gs.impl</name>
+        <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem</value>
+    </property>
+    <property>
+        <name>google.cloud.auth.service.account.enable</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>google.cloud.auth.service.account.json.keyfile</name>
+        <value>/path/to/your-service-account-key.json</value>
+    </property>
+</configuration>
+```
+
+#### 4. Configure `spark-defaults.conf`
+
+Ensure your `spark-defaults.conf` file includes necessary configurations for GCS. This file is typically located in `$SPARK_HOME/conf/`.
+
+Add the following configurations:
+
+```properties
+spark.hadoop.fs.gs.impl com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem
+spark.hadoop.google.cloud.auth.service.account.enable true
+spark.hadoop.google.cloud.auth.service.account.json.keyfile /path/to/your-service-account-key.json
+```
+
+#### 5. Running Spark
+
+Ensure that your Spark configuration includes the GCS connector JAR in the classpath. You can add it to the `spark-submit` command using the `--jars` option:
+
+```bash
+spark-submit --jars /path/to/hadoop-common-2.7.4.jar,/path/to/gcs-connector-hadoop2-latest.jar --conf spark.hadoop.google.cloud.auth.service.account.json.keyfile=/path/to/your-service-account-key.json your_spark_application.py
+```
+
+### Example Spark Application Configuration
+
+Here's how you might configure and use Spark to access GCS in a Python script:
+
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("GCS_Spark") \
+    .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
+    .config("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
+    .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/path/to/your-service-account-key.json") \
+    .getOrCreate()
+
+# Example to read a file from GCS
+df = spark.read.text("gs://your-gcs-bucket/path/to/your/file.txt")
+df.show()
+```
+
+### Spark History Server Configuration
+
+Ensure that your History Server configuration in `spark-defaults.conf` is correctly set to use a path accessible by the History Server. If you want to use GCS for storing event logs, you can specify the GCS bucket path:
+
+```properties
+spark.eventLog.enabled true
+spark.eventLog.dir gs://your-gcs-bucket/spark-history
+```
+
+### Summary
+
+- **Required JARs**: 
+  - `hadoop-common-2.7.4.jar`
+  - `gcs-connector-hadoop2-latest.jar`
+
+- **Configuration**:
+  - `core-site.xml` and `spark-defaults.conf` must be configured correctly to use the GCS connector with a service account JSON key file.
+
+By following these steps, you ensure that Spark 3.1.2 can access Google Cloud Storage using a service account JSON key file, which is the recommended and more secure method compared to using HMAC keys. This setup should not interfere with other Spark functionalities such as the History Server and other default configurations.
