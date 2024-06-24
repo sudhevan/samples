@@ -1,0 +1,1036 @@
+To deny specific IP addresses from accessing a particular server or location in the HTTP section of Nginx, you can use the `deny` directive. This directive allows you to block requests from specified IP addresses. Here's how you can configure it:
+
+### Example Configuration
+
+```nginx
+http {
+    # Define the log format and access log if needed
+    log_format custom_format '$remote_addr - $remote_user [$time_local] '
+                             '"$request" $status $body_bytes_sent '
+                             '"$http_referer" "$http_user_agent" '
+                             '$server_addr:$server_port';
+
+    access_log /var/log/nginx/access.log custom_format;
+
+    server {
+        listen 80;
+        server_name example.com;
+
+        # Deny access to specific IP addresses
+        deny 192.168.1.100;
+        deny 192.168.1.101;
+        # Allow access to all other IP addresses
+        allow all;
+
+        location / {
+            proxy_pass http://backend_server;
+        }
+    }
+
+    server {
+        listen 8080;
+        server_name another.example.com;
+
+        # Deny access to specific IP addresses
+        deny 10.0.0.1;
+        deny 10.0.0.2;
+        # Allow access to all other IP addresses
+        allow all;
+
+        location / {
+            proxy_pass http://another_backend_server;
+        }
+    }
+
+    # Add more server blocks as needed
+}
+```
+
+### Explanation
+
+1. **HTTP Block Setup:**
+   - The `http` block contains configurations for handling HTTP traffic.
+
+2. **Log Format and Access Log:**
+   - Define a custom log format (`custom_format`) and specify the access log file (`/var/log/nginx/access.log`).
+
+3. **Server Blocks:**
+   - Each `server` block listens on a specific port (`80` and `8080` in this example) and is configured with `server_name` and `location` directives.
+   - The `deny` directive inside each `server` block is used to block access from specific IP addresses.
+   - The `allow all` directive ensures that all other IP addresses are allowed access.
+
+### Customization and Monitoring
+
+- **Deny List:** Add or remove IP addresses in the `deny` directives as needed to manage the list of blocked IPs.
+- **Logging:** Customize the log format to include or exclude additional variables if required. Monitor the access logs to verify that the correct IP addresses are being denied access.
+
+### Example Denied Access Response
+
+When an IP address that is denied access tries to connect, they will receive a 403 Forbidden response by default.
+
+### Conclusion
+
+By using the `deny` directive in the `server` block (or `location` block if you need more granular control), you can effectively block specific IP addresses from accessing your Nginx server. Adjust the configuration to suit your specific access control requirements and ensure that legitimate traffic is not inadvertently blocked. Regularly review and update the deny list as needed.
+
+
+To enable logging in the HTTP section of Nginx with details about the listener address (server IP and port), you can use the `$server_addr` and `$server_port` variables in your `log_format` directive. These variables capture the address and port of the server handling the request. Here’s how you can configure this:
+
+### Example Configuration
+
+```nginx
+http {
+    # Define the log format including server address and port
+    log_format custom_format '$remote_addr - $remote_user [$time_local] '
+                             '"$request" $status $body_bytes_sent '
+                             '"$http_referer" "$http_user_agent" '
+                             '$server_addr:$server_port';
+
+    # Define the global access log using the custom format
+    access_log /var/log/nginx/access.log custom_format;
+
+    server {
+        listen 80;
+        server_name example.com;
+
+        location / {
+            proxy_pass http://backend_server;
+        }
+    }
+
+    server {
+        listen 8080;
+        server_name another.example.com;
+
+        location / {
+            proxy_pass http://another_backend_server;
+        }
+    }
+
+    # Add more server blocks as needed
+}
+```
+
+### Explanation
+
+1. **HTTP Block Setup:**
+   - The `http` block contains configurations for handling HTTP traffic.
+
+2. **Log Format Directive (`log_format`):**
+   - Define a custom log format named `custom_format` that includes:
+     - `$remote_addr`: IP address of the client making the request.
+     - `$remote_user`: Username supplied with the request (if any).
+     - `$time_local`: Local time when the request was received.
+     - `$request`: Full request line from the client.
+     - `$status`: HTTP status code of the response.
+     - `$body_bytes_sent`: Number of bytes sent to the client.
+     - `$http_referer`: Referer header from the client.
+     - `$http_user_agent`: User-Agent header from the client.
+     - `$server_addr`: IP address of the server handling the request.
+     - `$server_port`: Port of the server handling the request.
+
+3. **Access Log Directive (`access_log`):**
+   - Specify the location of the access log file (`/var/log/nginx/access.log`) and use the custom log format (`custom_format`).
+
+4. **Server Blocks:**
+   - Define `server` blocks to handle requests on different ports (`80` and `8080` in this example).
+   - Each `server` block can have its own configurations for handling requests and proxying them to backend servers.
+
+### Customization and Monitoring
+
+- **Log File Location:** You can change the log file location by modifying the path in the `access_log` directive.
+- **Log Format:** Adjust the `log_format` directive to include or exclude any other variables as per your requirements.
+
+### Example Log Entry
+
+With the above configuration, a sample log entry might look like this:
+
+```
+192.168.1.100 - - [24/Jun/2024:10:00:00 +0000] "GET /index.html HTTP/1.1" 200 1024 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" 203.0.113.1:80
+```
+
+### Conclusion
+
+This configuration allows you to log HTTP requests in Nginx with details about the server IP and port handling the request. Adjust the log format and other configurations as needed to fit your specific logging requirements. Regularly monitor your logs to ensure they capture the necessary details for your use case.
+
+
+
+To limit requests per minute from specific IP addresses in Nginx's `stream` module, you can utilize a combination of directives to track and enforce rate limits. While Nginx's `http` module has more robust capabilities for rate limiting using the `limit_req` directive, the `stream` module lacks a direct equivalent. However, you can achieve similar functionality by leveraging scripting capabilities in Nginx using Lua or a combination of variables and `map` directives to emulate rate limiting per minute.
+
+Here's an approach using `map` directives and variables to implement a basic rate limiting mechanism per minute for specific IP addresses in the `stream` module:
+
+### Example Configuration
+
+```nginx
+stream {
+    # Define log format and access log if needed
+    # log_format stream_log '$remote_addr [$time_local] $protocol '
+    #                       '$status $bytes_sent $bytes_received '
+    #                       '$session_time';
+
+    # access_log /var/log/nginx/stream_access.log stream_log;
+
+    # Define a map to store the timestamp of the last request per IP
+    map $remote_addr $stream_limit_req_zone {
+        default "";
+    }
+
+    # Server block for each listener port
+    server {
+        listen 12345;
+
+        # Track requests per IP and limit per minute
+        set $stream_limit_req_key $binary_remote_addr;
+        set $stream_limit_req_zone $stream_limit_req_zone-$stream_limit_req_key;
+
+        # Limit requests per minute (adjust burst and rate as needed)
+        limit_req_zone $stream_limit_req_zone zone=stream_limit_req_zone:10m rate=1r/s;
+
+        # Limit requests based on the defined zone
+        limit_req zone=stream_limit_req_zone burst=5 nodelay;
+
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+
+        # Track requests per IP and limit per minute
+        set $stream_limit_req_key $binary_remote_addr;
+        set $stream_limit_req_zone $stream_limit_req_zone-$stream_limit_req_key;
+
+        # Limit requests per minute (adjust burst and rate as needed)
+        limit_req_zone $stream_limit_req_zone zone=stream_limit_req_zone:10m rate=1r/s;
+
+        # Limit requests based on the defined zone
+        limit_req zone=stream_limit_req_zone burst=5 nodelay;
+
+        proxy_pass another_backend_server:65432;
+    }
+
+    # Add more server blocks as needed
+}
+```
+
+### Explanation
+
+1. **Stream Block Setup:**
+   - The `stream` block sets up configurations for handling TCP/UDP traffic.
+
+2. **Map Directive (`map`):**
+   - The `map` directive (`$stream_limit_req_zone`) is used to map each `$remote_addr` (IP address of the client) to an empty value initially.
+
+3. **Tracking Requests and Rate Limiting:**
+   - Within each `server` block:
+     - `set $stream_limit_req_key $binary_remote_addr;` sets a key based on the binary representation of the client's IP address.
+     - `set $stream_limit_req_zone $stream_limit_req_zone-$stream_limit_req_key;` appends the key to the `$stream_limit_req_zone` to differentiate limits per IP.
+     - `limit_req_zone` defines a shared memory zone (`stream_limit_req_zone`) to store request counters per IP address, with a rate of `1r/s` (1 request per second).
+
+4. **Limit Requests (`limit_req`):**
+   - `limit_req` directive restricts requests based on the defined zone (`stream_limit_req_zone`), allowing a `burst` of up to 5 requests before delaying excess requests (`nodelay`).
+
+### Customization and Monitoring
+
+- **Adjust Limits:** Modify `rate`, `burst`, and `nodelay` parameters in `limit_req` directives to adjust the rate limiting behavior as per your requirements.
+  
+- **Logging and Monitoring:** Uncomment the `log_format` and `access_log` directives in the `stream` block if you need detailed logging for request rate limits and traffic.
+
+### Considerations
+
+- **Shared Memory Size:** Ensure that the size (`10m` in the example) of each `limit_req_zone` is sufficient based on the number of IP addresses and expected request rates.
+  
+- **Testing:** Regularly test and monitor your Nginx configuration to verify that the rate limiting rules are applied correctly without affecting legitimate traffic.
+
+This configuration provides a basic approach to limit requests per minute from specific IP addresses in Nginx's `stream` module. For more advanced rate limiting or complex scenarios, consider using Lua scripting or integrating with external modules depending on your specific use case and requirements.
+
+
+
+To limit the number of requests from specific IP addresses in Nginx's `stream` module, you can use the `limit_conn` and `map` directives to define IP-specific limits. Here’s how you can configure this:
+
+### Example Configuration
+
+```nginx
+stream {
+    # Define log format and access log if needed
+    # log_format stream_log '$remote_addr [$time_local] $protocol '
+    #                       '$status $bytes_sent $bytes_received '
+    #                       '$session_time';
+
+    # access_log /var/log/nginx/stream_access.log stream_log;
+
+    # Define a map to match IP addresses to connection limits
+    map $remote_addr $stream_limit_conn_zone {
+        default 1;  # Default connection limit for IPs not specified below
+        192.168.1.100 5;  # Example: Allow 5 connections for IP 192.168.1.100
+        192.168.1.101 3;  # Example: Allow 3 connections for IP 192.168.1.101
+    }
+
+    # Define the zone for connection limits
+    limit_conn_zone $binary_remote_addr zone=stream_limit_conn_zone:10m;
+
+    # Server block for each listener port
+    server {
+        listen 12345;
+
+        # Limit connections based on IP address
+        limit_conn stream_limit_conn_zone $stream_limit_conn_zone;
+
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+
+        # Limit connections based on IP address
+        limit_conn stream_limit_conn_zone $stream_limit_conn_zone;
+
+        proxy_pass another_backend_server:65432;
+    }
+
+    # Add more server blocks as needed
+}
+```
+
+### Explanation
+
+1. **Stream Block Setup:**
+   - The `stream` block defines configurations for handling TCP/UDP traffic.
+
+2. **Map Directive (`map`):**
+   - The `map` directive is used to map specific IP addresses (`$remote_addr`) to their respective connection limits (`$stream_limit_conn_zone`).
+
+3. **Limit Connection Zone (`limit_conn_zone`):**
+   - The `limit_conn_zone` directive creates a shared memory zone (`stream_limit_conn_zone`) to store connection limit counters based on IP addresses.
+
+4. **Server Blocks:**
+   - Each `server` block listens on a specific port (`12345`, `23456`, etc.).
+   - The `limit_conn` directive inside each `server` block restricts the number of concurrent connections from IP addresses based on the configured `stream_limit_conn_zone`.
+
+### Customization and Monitoring
+
+- **Adjust Limits:** Modify the `map` block to add or adjust IP addresses and their respective connection limits.
+  
+- **Logging and Monitoring:** Uncomment the `log_format` and `access_log` directives in the `stream` block if you need detailed logging for connection limits and traffic.
+
+### Considerations
+
+- Ensure that the `stream_limit_conn_zone` size (`10m` in the example) is sufficient based on the number of IP addresses and their connection limits.
+  
+- Regularly monitor and test your Nginx configuration to ensure that the connection limits are enforced correctly and do not impact legitimate traffic.
+
+This configuration allows you to effectively limit the number of concurrent connections from specific IP addresses in Nginx's `stream` module, providing control over network traffic and resource utilization.
+
+
+
+To trace the traffic routing in Nginx based on specific ports and then route it further upstream, you can use the `stream` module in Nginx. The `stream` module allows you to proxy and route TCP and UDP traffic, making it suitable for scenarios where you need to handle network-level traffic routing based on ports. Here’s how you can set it up:
+
+### Example Configuration
+
+Let's assume you have different backend servers (`upstream` servers) to which you want to route traffic based on the port it comes in on. Here’s a basic example configuration:
+
+```nginx
+stream {
+    # Define log format and access log if needed
+    # log_format stream_log '$remote_addr [$time_local] $protocol '
+    #                       '$status $bytes_sent $bytes_received '
+    #                       '$session_time';
+
+    # access_log /var/log/nginx/stream_access.log stream_log;
+
+    # Define upstream servers (backend servers)
+    upstream backend_12345 {
+        server backend_server1:54321;
+        server backend_server2:54322;
+        # Add more servers as needed
+    }
+
+    upstream backend_23456 {
+        server another_backend_server1:65432;
+        server another_backend_server2:65433;
+        # Add more servers as needed
+    }
+
+    # Server block for each listener port
+    server {
+        listen 12345;
+        proxy_pass backend_12345;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass backend_23456;
+    }
+
+    # Add more server blocks as needed
+}
+```
+
+### Explanation
+
+1. **Stream Block Setup:**
+   - The `stream` block is used to define TCP/UDP proxying and routing configurations.
+
+2. **Upstream Servers:**
+   - `upstream` blocks (`backend_12345` and `backend_23456`) define groups of backend servers (`backend_server1`, `backend_server2`, etc.) that will handle the proxied traffic.
+
+3. **Server Blocks:**
+   - Each `server` block listens on a specific port (`12345`, `23456`, etc.).
+   - The `proxy_pass` directive inside each `server` block specifies which upstream group (`backend_12345`, `backend_23456`, etc.) to forward the traffic to.
+
+### Logging and Monitoring
+
+- **Access Logging:** If needed, uncomment the `log_format` and `access_log` directives in the `stream` block to log traffic details. Adjust the log format according to your requirements.
+  
+- **Monitoring:** Use tools like `tail -f` on log files (`/var/log/nginx/stream_access.log` if configured) to monitor incoming traffic and ensure it's being routed correctly based on the ports.
+
+### Further Customization
+
+- **Advanced Routing:** You can add additional conditions or modules like `geo` to customize routing based on IP addresses or other factors.
+  
+- **TLS Termination:** If you need to terminate SSL/TLS connections at Nginx before forwarding traffic upstream, you can configure SSL/TLS settings within each `server` block.
+
+### Conclusion
+
+This configuration demonstrates how to route TCP traffic based on incoming port numbers in Nginx using the `stream` module. Adjust the upstream servers and server blocks according to your specific networking requirements and application architecture. Regularly monitor and test your configuration to ensure traffic is routed correctly and efficiently.
+
+
+
+In Nginx, each `server` block in the `stream` module can have its own `access_log` directive. When you specify an `access_log` directive inside a `server` block, logs for that server will be written to the specified log file. If you want to log to both a default log file and a specific log file for each server block, you will need to use the `access_log` directive in both the global `stream` block and inside each `server` block.
+
+Here’s how you can configure Nginx to log to both a global log file and individual log files for each server block:
+
+### Configuration for Dual Logging
+
+```nginx
+stream {
+    # Define the global log format
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time';
+
+    # Define the global access log
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+
+        # Define the specific access log for this port
+        access_log /var/log/nginx/stream_12345_access.log stream_log;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+
+        # Define the specific access log for this port
+        access_log /var/log/nginx/stream_23456_access.log stream_log;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+
+        # Define the specific access log for this port
+        access_log /var/log/nginx/stream_34567_access.log stream_log;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Explanation
+
+1. **Global Access Log:**
+   - The `access_log /var/log/nginx/stream_access.log stream_log;` directive in the `stream` block ensures that all requests are logged to this global log file.
+
+2. **Specific Access Logs:**
+   - Each `server` block has its own `access_log` directive (e.g., `access_log /var/log/nginx/stream_12345_access.log stream_log;`), which logs requests for that specific port to a separate log file.
+
+### Behavior
+
+- Requests to port `12345` will be logged to both `/var/log/nginx/stream_access.log` and `/var/log/nginx/stream_12345_access.log`.
+- Requests to port `23456` will be logged to both `/var/log/nginx/stream_access.log` and `/var/log/nginx/stream_23456_access.log`.
+- Requests to port `34567` will be logged to both `/var/log/nginx/stream_access.log` and `/var/log/nginx/stream_34567_access.log`.
+
+### Analyzing the Logs
+
+To analyze the logs, you can use tools like `grep` and `wc` to count the number of requests in each log file.
+
+#### Counting Requests in Global Log
+
+```sh
+grep ' 23456$' /var/log/nginx/stream_access.log | wc -l
+```
+
+#### Counting Requests in Specific Log
+
+```sh
+wc -l /var/log/nginx/stream_23456_access.log
+```
+
+### Summary
+
+By configuring Nginx to log to both a global log file and specific log files for each listener port, you can monitor all requests in one place while still being able to track and analyze requests for individual ports separately.
+
+
+Nginx version 1.20.1 supports the `stream` module, but the `$server_port` variable is not directly available in the `stream` context. The `$server_port` variable is available in the HTTP context but not in the `stream` module.
+
+### Workaround for Logging the Listener Port in the Stream Module
+
+Since `$server_port` is not available in the `stream` module, you can use different log files for each `server` block to distinguish requests by port.
+
+#### Example Configuration
+
+Here's how you can set up different log files for each listener port:
+
+```nginx
+stream {
+    # Define the log format (excluding server_port since it's not available)
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time';
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+        access_log /var/log/nginx/stream_12345_access.log stream_log;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+        access_log /var/log/nginx/stream_23456_access.log stream_log;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+        access_log /var/log/nginx/stream_34567_access.log stream_log;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Analyzing the Logs
+
+With this configuration, each listener port logs to its own file. You can analyze each log file separately.
+
+#### Counting Requests per Port
+
+To count the number of requests for port `23456`, you can directly inspect its log file:
+
+```sh
+wc -l /var/log/nginx/stream_23456_access.log
+```
+
+This command counts the number of lines in the log file, corresponding to the number of requests.
+
+### Summary
+
+- Nginx 1.20.1 does not support the `$server_port` variable in the `stream` module.
+- Use different log files for each listener port to distinguish and count requests.
+- Analyze each log file separately using tools like `wc` to count the number of requests.
+
+By using this method, you can effectively monitor and log the requests for each port in your Nginx `stream` configuration.
+
+
+The `$server_port` variable is valid in the HTTP context of Nginx but is not directly available in the `stream` module in all versions. To log the listener port in the `stream` module, you need to ensure you are using a version of Nginx that supports this feature. As of Nginx 1.9.0, the `stream` module was introduced, but the ability to log the listener port specifically may depend on the version and the context.
+
+### Checking for Compatibility
+
+To determine if your version of Nginx supports the `$server_port` variable in the `stream` context, you can:
+
+1. **Check the Nginx Documentation:**
+   Refer to the official Nginx documentation for your specific version.
+
+2. **Test Configuration:**
+   Add a simple configuration to see if Nginx logs the listener port correctly.
+
+### Example Configuration for the Stream Module
+
+Assuming you are using a compatible version of Nginx, here’s how you can configure the `stream` module to log the listener port:
+
+```nginx
+stream {
+    # Define the log format including the server port
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time $server_port';
+
+    # Define the global access log
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Verifying the Logs
+
+After configuring Nginx, you can reload the configuration and verify the logs to ensure that the listener port is being recorded correctly:
+
+```sh
+sudo nginx -s reload
+tail -f /var/log/nginx/stream_access.log
+```
+
+### Alternative Approach
+
+If you are using a version of Nginx where `$server_port` is not available in the `stream` context, you might need to use other methods to differentiate logs, such as logging the port number directly in your application or using different log files for each server block.
+
+#### Using Different Log Files
+
+```nginx
+stream {
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+        access_log /var/log/nginx/stream_12345_access.log stream_log;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+        access_log /var/log/nginx/stream_23456_access.log stream_log;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+        access_log /var/log/nginx/stream_34567_access.log stream_log;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Conclusion
+
+- Verify your version of Nginx supports the `$server_port` variable in the `stream` module.
+- Use the provided configuration to log the listener port if supported.
+- If not supported, consider alternative methods such as different log files for each listener port.
+
+
+
+In the `log_format` definition for the `stream` module, you can include the `$server_port` variable to log the listener port number. Here is a breakdown of how you can configure and identify the log column that will contain the listener port number:
+
+### Configuring Log Format
+
+Here's an example `stream` block configuration that logs the listener port number:
+
+```nginx
+stream {
+    # Define the log format including the server port
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time $server_port';
+
+    # Define the global access log
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Example Log Entry
+
+A log entry from `/var/log/nginx/stream_access.log` might look like this:
+
+```
+192.168.1.1 [23/Jun/2024:12:34:56 +0000] TCP 200 1024 2048 0.123 23456
+```
+
+In this log entry:
+- `192.168.1.1`: Client IP address
+- `[23/Jun/2024:12:34:56 +0000]`: Local time when the request was received
+- `TCP`: Protocol used
+- `200`: Connection status
+- `1024`: Bytes sent to the client
+- `2048`: Bytes received from the client
+- `0.123`: Session time (duration)
+- `23456`: Listener port number (this is the `$server_port` variable)
+
+### Filtering and Counting Requests by Port
+
+To count the number of requests for port `23456`, you can filter the log entries based on the port number (the last column in this case) using `grep` and `wc`:
+
+#### Using `grep` and `wc`
+
+```sh
+grep ' 23456$' /var/log/nginx/stream_access.log | wc -l
+```
+
+Explanation:
+- `grep ' 23456$' /var/log/nginx/stream_access.log` searches for lines that end with `23456`.
+- `wc -l` counts the number of matching lines, giving the number of requests for port `23456`.
+
+#### Using `awk`
+
+If you prefer using `awk` for more precise control, you can match the exact field containing the port number:
+
+```sh
+awk '$NF == "23456"' /var/log/nginx/stream_access.log | wc -l
+```
+
+Explanation:
+- `awk '$NF == "23456"' /var/log/nginx/stream_access.log` filters the log entries where the last field (`$NF` stands for "number of fields") is `23456`.
+- `wc -l` counts the number of matching lines.
+
+### Summary
+
+- The listener port number is logged as the last field in the log format defined by `$server_port`.
+- You can filter and count requests for specific ports using `grep` and `wc` or `awk` to match the log entries based on the port number.
+
+
+
+Yes, you can log requests for all different ports into a single log file and then filter the entries based on the port. Here’s how you can set it up:
+
+### Configuration to Log All Requests in One File
+
+You can define a single log format and a single access log file at the `stream` block level. Each `server` block will use this log configuration, and you can include the `$server_port` variable in your log format to differentiate requests by port.
+
+#### Updated Configuration
+
+```nginx
+stream {
+    # Define the log format including the server port
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time $server_port';
+
+    # Define the global access log
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+    }
+
+    server {
+        listen 34567;
+        proxy_pass yet_another_backend_server:76543;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Analyzing the Log File
+
+With this configuration, all stream requests are logged in `/var/log/nginx/stream_access.log`. The log format includes the `$server_port` variable, allowing you to filter the log entries by port.
+
+#### Counting Requests by Port
+
+To count the number of requests for port `23456`, you can use `grep` and `wc`:
+
+```sh
+grep '23456$' /var/log/nginx/stream_access.log | wc -l
+```
+
+This command does the following:
+- `grep '23456$' /var/log/nginx/stream_access.log` filters the log entries to include only those that end with `23456` (which corresponds to the `$server_port` value at the end of each log entry).
+- `wc -l` counts the number of lines returned by `grep`, which corresponds to the number of requests to port `23456`.
+
+#### Using `awk` for More Advanced Filtering
+
+If you need to perform more advanced filtering, you can use `awk`. For example, to count requests for port `23456`:
+
+```sh
+awk '$NF == "23456"' /var/log/nginx/stream_access.log | wc -l
+```
+
+This command does the following:
+- `awk '$NF == "23456"' /var/log/nginx/stream_access.log` filters the log entries where the last field (`$NF`) is `23456`.
+- `wc -l` counts the number of lines returned by `awk`.
+
+### Example Log Entry
+
+A log entry in `/var/log/nginx/stream_access.log` might look like this:
+
+```
+192.168.1.1 [23/Jun/2024:12:34:56 +0000] TCP 200 1024 2048 0.123 23456
+```
+
+Here, the last field is the port number, which allows you to filter and count requests by port.
+
+### Summary
+
+1. **Single Log File:** Configure Nginx to log all stream requests in a single log file.
+2. **Include Port in Log Format:** Use the `$server_port` variable in your log format to distinguish requests by port.
+3. **Filter and Count Requests:** Use `grep`, `awk`, and `wc` to filter and count requests for specific ports.
+
+By following these steps, you can efficiently track the number of requests for different ports within a single log file.
+
+
+
+To track the number of requests coming for port `23456` from the example provided, you can analyze the log file where the requests for this port are being recorded. Here’s a step-by-step guide on how to do this:
+
+### Example Configuration
+
+Ensure your configuration is set up correctly to log requests for port `23456`:
+
+```nginx
+stream {
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time';
+
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+
+        # Override log format and access log for this server
+        log_format custom_stream_log '$remote_addr - $remote_user [$time_local] $protocol '
+                                     '$status $bytes_sent $bytes_received '
+                                     '$session_time $server_port';
+
+        access_log /var/log/nginx/custom_stream_access.log custom_stream_log;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Checking the Log File
+
+In this configuration, the requests for port `23456` are being logged in `/var/log/nginx/custom_stream_access.log`. To track the number of requests coming to this port, you can use tools like `grep`, `wc`, or more advanced log analysis tools.
+
+#### Using `grep` and `wc`
+
+```sh
+grep '23456' /var/log/nginx/custom_stream_access.log | wc -l
+```
+
+This command does the following:
+- `grep '23456' /var/log/nginx/custom_stream_access.log` filters the log entries to include only those that contain `23456`.
+- `wc -l` counts the number of lines returned by `grep`, which corresponds to the number of requests to port `23456`.
+
+#### Using `awk` for More Advanced Filtering
+
+If you need to filter and count log entries based on more complex criteria, you can use `awk`:
+
+```sh
+awk '$NF ~ /23456/' /var/log/nginx/custom_stream_access.log | wc -l
+```
+
+This command does the following:
+- `awk '$NF ~ /23456/' /var/log/nginx/custom_stream_access.log` filters the log entries where the last field (`$NF`, which stands for "number of fields") matches `23456`.
+- `wc -l` counts the number of lines returned by `awk`.
+
+### Summary
+
+- Ensure your Nginx configuration logs requests for port `23456` to a specific log file.
+- Use command-line tools like `grep` and `wc` to count the number of requests in the log file.
+- For more complex filtering, use `awk`.
+
+By following these steps, you can effectively track the number of requests coming to port `23456` on your Nginx server.
+
+
+
+No, you don't need to add the logging format and log file configuration in every `server` block within the `stream` section. You can define the log format and access log once at the `stream` block level, and it will apply to all `server` blocks within that `stream` block unless overridden.
+
+Here's how you can set it up more efficiently:
+
+### Stream Configuration with Global Logging
+
+Define the log format and access log at the `stream` level. This way, all `server` blocks under the `stream` section will use the same logging configuration by default.
+
+```nginx
+stream {
+    # Define the log format
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time';
+
+    # Define the global access log
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345; # Example TCP port
+
+        proxy_pass backend_server:54321; # Example backend server
+    }
+
+    server {
+        listen 23456; # Another example TCP port
+
+        proxy_pass another_backend_server:65432; # Another backend server
+    }
+
+    # Optionally, add a status server
+    server {
+        listen 12346; # Status endpoint port
+        allow 127.0.0.1; # Allow only local access
+        deny all; # Deny all other access
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Explanation:
+
+1. **Global Log Format and Access Log:**
+   - The `log_format` directive is defined at the `stream` block level, so it applies to all servers within the `stream` block.
+   - The `access_log` directive is also defined at the `stream` block level, setting a global log file for all connections.
+
+2. **Server Blocks:**
+   - Each `server` block handles a different port and backend server.
+   - All connection requests to these servers are logged using the global log format and access log file.
+
+3. **Status Monitoring Server:**
+   - An additional server block is set up to provide status monitoring via the `stub_status` module.
+   - This block listens on a different port (`12346` in this example) and allows only local access.
+
+### Overriding the Log Configuration
+
+If you need different log settings for specific `server` blocks, you can override the global settings by defining a new `log_format` or `access_log` within those specific `server` blocks.
+
+#### Example of Overriding Log Configuration in a Specific Server Block
+
+```nginx
+stream {
+    log_format stream_log '$remote_addr [$time_local] $protocol '
+                          '$status $bytes_sent $bytes_received '
+                          '$session_time';
+
+    access_log /var/log/nginx/stream_access.log stream_log;
+
+    server {
+        listen 12345;
+        proxy_pass backend_server:54321;
+    }
+
+    server {
+        listen 23456;
+        proxy_pass another_backend_server:65432;
+
+        # Override log format and access log for this server
+        log_format custom_stream_log '$remote_addr - $remote_user [$time_local] $protocol '
+                                     '$status $bytes_sent $bytes_received '
+                                     '$session_time $server_port';
+
+        access_log /var/log/nginx/custom_stream_access.log custom_stream_log;
+    }
+
+    server {
+        listen 12346;
+        allow 127.0.0.1;
+        deny all;
+
+        location /stream_status {
+            stub_status;
+        }
+    }
+}
+```
+
+### Key Points:
+
+- **Global Configuration:** Define log formats and access logs globally within the `stream` block to apply them to all server blocks by default.
+- **Override Configuration:** Override the global settings in specific server blocks if different logging details are needed.
+
+This approach keeps your configuration DRY (Don't Repeat Yourself) and easy to manage while allowing flexibility for specific needs.
+
+
+
