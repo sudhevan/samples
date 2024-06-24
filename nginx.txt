@@ -1746,3 +1746,35 @@ Scaling:
 Plan for scaling by monitoring resource usage and performance. Use Kubernetes HPA (Horizontal Pod Autoscaler) if applicable, but note that Kafka scaling might require manual intervention to reconfigure partitions and replicas.
 By following these steps and best practices, you can ensure that Kafka runs smoothly within a Kubernetes environment and provides reliable connectivity to clients.
 
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-configuration
+  namespace: ingress-nginx
+data:
+  proxy-connect-timeout: "60s"
+  proxy-send-timeout: "600s"
+  proxy-read-timeout: "600s"
+  proxy-buffer-size: "16k"
+  proxy-buffers: "8 32k"
+  proxy-busy-buffers-size: "64k"
+  proxy-buffering: "on"
+  keep-alive: "75s"
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-configuration
+  namespace: ingress-nginx
+data:
+  proxy-connect-timeout: "60s"
+  proxy-send-timeout: "600s"
+  proxy-read-timeout: "600s"
+  proxy-buffer-size: "16k"
+  proxy-buffers: "8 32k"
+  proxy-busy-buffers-size: "64k"
+  proxy-buffering: "on"
+  keep-alive: "75s"
