@@ -3,13 +3,82 @@ curl -k -H "Authorization: Bearer YOUR_ACTUAL_API_KEY" \
      -d '{"model":"claude-3-sonnet-20240229","max_tokens":10,"messages":[{"role":"user","content":"Hello"}]}' \
      https://api.anthropic.com/v1/messages
 
-sk-ant-api03-JgK6X57y2ajxx9rtovMfmk16C-yiH21XfpuZsalRDFjy4jdxGSlUC09b56aiK6Wcw5W5bdnkLLySDGKhSbg
+The Full Chain:
+Container Firefox → Container hosts file → Container socat → RHEL VM socat → Real Claude
+Step 1: Dockerfile with custom setup
+dockerfileFROM ubuntu:latest
 
+# Install Firefox, socat, and basic tools
+RUN apt-get update && apt-get install -y \
+    firefox \
+    socat \
+    x11vnc \
+    xvfb \
+    fluxbox \
+    && rm -rf /var/lib/apt/lists/*
 
+# Custom hosts file - redirect claude.ai to localhost
+RUN echo "127.0.0.2 claude.ai" >> /etc/hosts
+RUN echo "127.0.0.2 api.anthropic.com" >> /etc/hosts
 
+# Start script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
-curl -k -H "x-api-key: " \
-     -H "anthropic-version: 2023-06-01" \
-     -H "content-type: application/json" \
-     --data '{"model":"claude-3-haiku-20240307","max_tokens":50,"messages":[{"role":"user","content":"Hello, test message"}]}' \
-     https://api.anthropic.com/v1/messages
+EXPOSE 5901 6901
+CMD ["/start.sh"]
+Step 2: Container startup script (start.sh)
+bash#!/bin/bash
+# Start socat proxy - route localhost:443 to RHEL VM
+socat TCP4-LISTEN:443,bind=127.0.0.2,fork,reuseaddr TCP4:RHEL_VM_IP:8443 &
+
+# Start VNC and Firefox
+Xvfb :1 -screen 0 1024x768x16 &
+x11vnc -display :1 -nopw -listen localhost -xkb &
+DISPLAY=:1 firefox &
+wait
+Step 3: RHEL VM socat
+bash# On RHEL VM - proxy to real Claude
+socat TCP4-LISTEN:8443,fork,reuseaddr TCP4:claude.ai:443
+Step 4: Build and run
+bash# On Windows
+docker build -t claude-proxy-browser .
+docker run -p 5901:5901 --name claude-browser claude-proxy-browser
+This creates a perfect tunnel that completely bypasses corporate restrictions!
+Want me to help you create these files?RetrySfirst how do. i access the firefox whic hstarted in container? will there be any ui or something like that? or d o i ge ta rdp like window for that container in my laptop?EditGreat question! You need a way to see and interact with the Firefox browser running inside the container. Here are the options:
+Option 1: VNC (Most Common)
+The container runs a VNC server, you connect with VNC client:
+Container setup:
+dockerfile# Container runs VNC server on port 5901
+EXPOSE 5901
+Access from Windows:
+
+Install TightVNC Viewer or RealVNC Viewer
+Connect to: localhost:5901
+You'll see a desktop with Firefox running
+
+Option 2: Web-based VNC (Easiest)
+Container serves VNC through a web page:
+Container setup:
+dockerfile# Container runs web VNC on port 6901
+EXPOSE 6901
+Access from Windows:
+
+Open Chrome/Edge to: http://localhost:6901
+You'll see Firefox in your browser (like remote desktop)
+
+Option 3: X11 Forwarding (Advanced)
+Direct display forwarding to Windows X server.
+Recommended: Web VNC
+bash# Use this pre-built image with web VNC
+docker run -d -p 6901:6901 --name firefox-test \
+  consol/ubuntu-xfce-vnc:latest
+Then go to: http://localhost:6901/?password=vncpassword
+You'll see:
+
+A full Linux desktop in your browser
+Firefox icon to click
+Mouse and keyboard work normally
+Looks like remote desktop in a browser tab
+
+Want to try the simple web VNC approach first?
