@@ -4,3 +4,12 @@ curl -k -H "Authorization: Bearer YOUR_ACTUAL_API_KEY" \
      https://api.anthropic.com/v1/messages
 
 sk-ant-api03-JgK6X57y2ajxx9rtovMfmk16C-yiH21XfpuZsalRDFjy4jdxGSlUC09b56aiK6Wcw5W5bdnkLLySDGKhSbg
+
+
+
+
+curl -k -H "x-api-key: " \
+     -H "anthropic-version: 2023-06-01" \
+     -H "content-type: application/json" \
+     --data '{"model":"claude-3-haiku-20240307","max_tokens":50,"messages":[{"role":"user","content":"Hello, test message"}]}' \
+     https://api.anthropic.com/v1/messages
