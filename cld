@@ -340,3 +340,28 @@ docker run -d --name socat-proxy \
   --network host \
   alpine/socat \
   OPENSSL-LISTEN:443,cert=/cert.pem,key=/key.pem,verify=0,fork TCP4:127.0.0.1:8080
+
+
+
+Option 1: Use Windows proxy IP directly
+Location: WSL Ubuntu
+bash# Get Windows host IP from WSL perspective
+cat /etc/resolv.conf | grep nameserver | awk '{print $2}'
+# This gives you the Windows IP (usually something like 172.x.x.x)
+
+# Use that IP for proxy
+export http_proxy=http://172.x.x.x:8080  # Replace with actual IP
+export https_proxy=http://172.x.x.x:8080
+
+sudo apt update
+sudo apt install -y socat
+Option 2: Download socat binary directly
+Location: WSL Ubuntu
+bash# Download pre-compiled socat binary
+wget https://github.com/andrew-d/static-binaries/raw/master/binaries/linux/x86_64/socat
+chmod +x socat
+sudo mv socat /usr/local/bin/
+Option 3: Skip socat, use netcat/ssh instead
+Location: WSL Ubuntu
+bash# Use SSH tunnel instead (if you have SSH access to RHEL VM)
+ssh -f -N -L 443:claude.ai:443 user@RHEL_VM_IP
