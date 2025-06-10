@@ -300,3 +300,43 @@ Container: Gets the VNC requests on its normal port 6901
 
 The key is that Zscaler only sees the encrypted HTTPS traffic from Windows to WSL port 443.
 Does this clarify the flow?
+
+
+
+
+
+
+Configure WSL Proxy for Package Installation:
+Location: WSL Ubuntu
+bash# Set proxy for current session
+export http_proxy=http://webproxy.bns:8080
+export https_proxy=http://webproxy.bns:8080
+export no_proxy=localhost,127.0.0.1,127.0.0.2,127.0.0.3,.local
+
+# Make permanent
+echo 'export http_proxy=http://webproxy.bns:8080' >> ~/.bashrc
+echo 'export https_proxy=http://webproxy.bns:8080' >> ~/.bashrc
+echo 'export no_proxy=localhost,127.0.0.1,127.0.0.2,127.0.0.3,.local' >> ~/.bashrc
+
+# Configure apt to use proxy
+sudo tee /etc/apt/apt.conf.d/95proxies > /dev/null << 'EOF'
+Acquire::http::Proxy "http://webproxy.bns:8080";
+Acquire::https::Proxy "http://webproxy.bns:8080";
+EOF
+
+# Update package list and install socat
+sudo apt update
+sudo apt install -y socat
+
+# Verify socat is installed
+socat -V
+If apt still has issues, try alternative:
+bash# Download socat manually (if needed)
+wget --proxy=on --http-proxy=webproxy.bns:8080 http://archive.ubuntu.com/ubuntu/pool/main/s/socat/socat_1.7.4.1-3ubuntu4_amd64.deb
+sudo dpkg -i socat_1.7.4.1-3ubuntu4_amd64.deb
+Alternative: Use Docker container with socat instead:
+bash# If socat installation fails, run socat in a container
+docker run -d --name socat-proxy \
+  --network host \
+  alpine/socat \
+  OPENSSL-LISTEN:443,cert=/cert.pem,key=/key.pem,verify=0,fork TCP4:127.0.0.1:8080
